@@ -301,26 +301,7 @@ void handleRoot() {
   
 }
 
-void startAP() {
-
-    WiFi.softAP("TOTTEN", "10203040");
-    server.on("/", handleRoot);
-    server.begin();
- 
-}
-
-void setup() {
-  pinMode(RELAY, OUTPUT);
-  pinMode(LED, OUTPUT);
-  digitalWrite(RELAY, 1);
-  digitalWrite(LED, 1);
-  
-  Serial.begin(9600);
-  EEPROM.begin(512);
-
-  if(hasSSID() && hasPass() && testConnection(getSSID(), getPass())) {
-
-    WiFi.mode(WIFI_STA);
+void connectMQTT() {
     
     char bufServer[getMQTTServer().length()+1];
     getMQTTServer().toCharArray(bufServer, getMQTTServer().length()+1);
@@ -346,7 +327,7 @@ void setup() {
         blinkLed(25,40);
         Serial.println("connected");
       } else {
-   
+        blinkLed(5,1000);
         Serial.print("failed with state: ");
         Serial.println(client.state());
         delay(2000);
@@ -357,6 +338,28 @@ void setup() {
 
     client.subscribe("esp/casa/sala");
     
+}
+
+void startAP() {
+
+    WiFi.softAP("TOTTEN", "10203040");
+    server.on("/", handleRoot);
+    server.begin();
+ 
+}
+
+void setup() {
+  pinMode(RELAY, OUTPUT);
+  pinMode(LED, OUTPUT);
+  digitalWrite(RELAY, 1);
+  digitalWrite(LED, 1);
+  
+  Serial.begin(9600);
+  EEPROM.begin(512);
+
+  if(hasSSID() && hasPass() && testConnection(getSSID(), getPass())) {
+    WiFi.mode(WIFI_STA);
+    connectMQTT();
   } else {
     startAP();
   }
@@ -380,6 +383,21 @@ void loop() {
       serialRead += c;
     }
 
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    if(testConnection(getSSID(), getPass())){
+      if (!client.connected()) {
+        connectMQTT();
+      }
+    }
+    
+    blinkLed(5,200);
+    delay(2000);
+  }
+
+  if (!client.connected()) {
+    connectMQTT();
   }
 
   server.handleClient();
